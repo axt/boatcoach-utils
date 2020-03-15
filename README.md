@@ -1,5 +1,5 @@
 # boatcoach-utils
-Various utilities to manage logs from BoatCoach app
+Various command line utilities to analyse logs from BoatCoach app.
 
 ## tsb.py
 Calculate and plot training stress balance and aggregated weekly and monthly TSS.
