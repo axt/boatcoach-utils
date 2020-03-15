@@ -57,9 +57,6 @@ def duration_in_sec(d):
         s += int(p)
     return s
 
-def get_ftp(dt):
-    return 145
-
 def prepare_tsb_data():
     dates = pd.date_range(start=START_DT, end=CUR_DT, freq='D')
     dfagg = pd.DataFrame(index=dates, columns=['TSS', 'FTP', 'ATL', 'CTL', 'TSB'])
@@ -126,10 +123,28 @@ def plot_tsb_data(dfagg):
     plt.xlim(START_DT, END_DT)
     return plt
 
+
+def plot_tss_agg(dfagg, period, width=5):
+    df = dfagg.resample(period).sum()
+    df = df.reset_index()
+    plt.figure(figsize=(30,15))
+    plt.bar( df['index'], df['TSS'], width)
+    plt.grid(axis='y')
+    plt.legend()
+    plt.ylabel('Aggregated TSS')
+    plt.xlim(START_DT, END_DT)
+    return plt
+
+
 def main():
     dfagg = prepare_tsb_data()
     plt = plot_tsb_data(dfagg)
     plt.savefig('tsb.png', bbox_inches='tight')
+    plt = plot_tss_agg(dfagg, 'M', 20)
+    plt.savefig('tss_monthly.png', bbox_inches='tight')
+    plt = plot_tss_agg(dfagg, 'W')
+    plt.savefig('tss_weekly.png', bbox_inches='tight')
+    
 
 if __name__== "__main__":
     main()
