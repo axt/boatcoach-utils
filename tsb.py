@@ -14,7 +14,7 @@ matplotlib.use('QT5Agg')
 BOATCOACH_LOG_DIR = '../boatcoach-logs/'
 
 STARTING_CTL = 0
-STARTING_ATL = 0
+STARTING_ATL = 0    
 CTL_DECAY    = 42
 ATL_DECAY    = 7
 START_DT     = '2019-01-01'
@@ -77,9 +77,37 @@ def prepare_tsb_data():
     for f in get_logfiles():
         dt = f[15:25]
         df = load_logfile(f)
-        mean_power = df['totalAvgPower'].mean()
-        duration   = duration_in_sec(df['workTime'].max())
-        tss = int(100 * (mean_power*duration / 3600) / dfagg.ix[dt]['FTP'])
+        df['workTime'] = df['workTime'].apply(duration_in_sec)
+        
+        workoutType = df['workoutType'][0]
+        if not all(df['workoutType'] == workoutType):
+            print("ERROR: workout type multivalued, recover manually: ", f)
+            exit(1)
+        if workoutType not in ['FixedTimeSplits', 'FixedDistanceSplits', 'VariableInterval']:
+            print("ERROR: workout type '%s' unknown: %s" % (workoutType, f))
+            exit(1)
+        
+        if workoutType == 'VariableInterval':
+            df = df[df['intervalType'] != 'Rest']
+            if len(df) == 0:
+                print("ERROR: dataframe empty after filtering, unhandled case %s, %s" % (workoutType, f))
+                exit(1)
+            else:
+                duration = df.groupby('intervalCount').max().sum()['workTime']
+        else:
+                duration = df['workTime'].max()
+            
+        ftp = dfagg.ix[dt]['FTP']
+
+        mean_power = df['totalAvgPower'].iloc[-1]
+        norm_power = np.sqrt(np.sqrt(np.mean(df['strokePower'].rolling(30).mean() ** 4)))
+        intensity  = norm_power / ftp
+        
+        tss_old = int((duration * mean_power) / (ftp * 3600.0) * 100.0)
+        tss     = int((duration * norm_power * intensity) / (ftp * 3600.0) * 100.0)
+        
+        print("%12s\t%d\t%d\t%d\t%.2f\t%d\t%d\t%d\t%.2f" % (dt, tss_old, tss, tss-tss_old, intensity, mean_power, norm_power, duration, tss*60/duration))
+        
         dfagg.at[dt,'TSS'] = dfagg.ix[dt]['TSS'] + tss
 
     atl = STARTING_ATL
@@ -138,6 +166,7 @@ def plot_tss_agg(dfagg, period, width=5):
 
 def main():
     dfagg = prepare_tsb_data()
+    print(dfagg)
     plt = plot_tsb_data(dfagg)
     plt.savefig('tsb.png', bbox_inches='tight')
     plt = plot_tss_agg(dfagg, 'M', 20)
