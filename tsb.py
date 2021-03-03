@@ -17,8 +17,9 @@ STARTING_CTL = 0
 STARTING_ATL = 0    
 CTL_DECAY    = 42
 ATL_DECAY    = 7
+FIRST_DT     = '2019-01-01'
 START_DT     = '2019-01-01'
-END_DT       = '2020-12-31'
+END_DT       = '2021-07-31'
 CUR_DT       = date.today().strftime("%Y-%m-%d") 
 
 def load_logfile(fname):
@@ -58,7 +59,7 @@ def duration_in_sec(d):
     return s
 
 def prepare_tsb_data():
-    dates = pd.date_range(start=START_DT, end=CUR_DT, freq='D')
+    dates = pd.date_range(start=FIRST_DT, end=CUR_DT, freq='D')
     dfagg = pd.DataFrame(index=dates, columns=['TSS', 'FTP', 'ATL', 'CTL', 'TSB'])
     dfagg = dfagg.astype(dtype={'TSS':float, 'FTP': float, 'ATL':float, 'CTL':float, 'TSB':float})
     dfagg['TSS'].fillna(0, inplace=True)
@@ -74,8 +75,12 @@ def prepare_tsb_data():
         else:
             lastftp = curftp
     
+    dfagg = dfagg[dfagg.index > START_DT]
+    
     for f in get_logfiles():
         dt = f[15:25]
+        if (dt < START_DT):
+            continue
         df = load_logfile(f)
         df['workTime'] = df['workTime'].apply(duration_in_sec)
         
