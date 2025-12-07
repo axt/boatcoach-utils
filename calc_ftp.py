@@ -24,6 +24,10 @@ BOATCOACH_LOG_DIR = '../boatcoach-logs/'
 TEST_20MIN = 20 * 60  # 1200 seconds
 TEST_8MIN = 8 * 60    # 480 seconds
 
+# Sanity check: realistic power range for rowing (Watts)
+MIN_REALISTIC_POWER = 50
+MAX_REALISTIC_POWER = 500
+
 
 def load_logfile(fname):
     """Load a BoatCoach CSV log file."""
@@ -97,10 +101,11 @@ def analyze_workout(filepath):
     """
     df = load_logfile(filepath)
 
-    # Get workout date from filename
-    date = filepath[5:15] if '/' in filepath else filepath[:10]
+    # Get workout date from filename (format: YYYY/boatcoach_YYYY-MM-DD_...)
+    # Date is at position 15:25 in the filepath
+    date = filepath[15:25] if '/' in filepath else filepath[:10]
 
-    # Get workout duration
+    # Get workout duration from the workTime column (cumulative)
     df['workTime_sec'] = df['workTime'].apply(duration_in_sec)
     total_duration = df['workTime_sec'].max()
 
@@ -116,17 +121,19 @@ def analyze_workout(filepath):
         'best_8min_power': None,
     }
 
-    # Find best 20-minute power
-    best_20, start_20, end_20 = find_best_power_window(df, TEST_20MIN)
-    if best_20 is not None:
-        result['best_20min_power'] = best_20
-        result['ftp_20min'] = best_20 * 0.95
+    # Find best 20-minute power (use actual duration, not row count)
+    if total_duration >= TEST_20MIN:
+        best_20, start_20, end_20 = find_best_power_window(df, TEST_20MIN)
+        if best_20 is not None and MIN_REALISTIC_POWER <= best_20 <= MAX_REALISTIC_POWER:
+            result['best_20min_power'] = best_20
+            result['ftp_20min'] = best_20 * 0.95
 
     # Find best 8-minute power
-    best_8, start_8, end_8 = find_best_power_window(df, TEST_8MIN)
-    if best_8 is not None:
-        result['best_8min_power'] = best_8
-        result['ftp_8min'] = best_8 * 0.90
+    if total_duration >= TEST_8MIN:
+        best_8, start_8, end_8 = find_best_power_window(df, TEST_8MIN)
+        if best_8 is not None and MIN_REALISTIC_POWER <= best_8 <= MAX_REALISTIC_POWER:
+            result['best_8min_power'] = best_8
+            result['ftp_8min'] = best_8 * 0.90
 
     return result
 
